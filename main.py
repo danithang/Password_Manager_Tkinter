@@ -1,7 +1,9 @@
 from tkinter import *
 from tkinter import messagebox
+# calling random elements to use shorthand version in the code
 from random import choice, randint, shuffle
 import pyperclip
+import json
 
 
 # ---------------------------- PASSWORD GENERATOR ------------------------------- #
@@ -41,24 +43,61 @@ def save():
     website = website_text.get()
     username = username_text.get()
     password = password_text.get()
-
+    # creating a variable for a nested dictionary of key/value pairs...website is what we will search through so
+    # that's the first key then email and password that came from the .get() variables
+    new_data = {
+        website: {
+            "email": username,
+            "password": password,
+        }
+    }
     # making sure user inputs info and if they don't then the error prompt will pop up, else everything will run
     if len(website) == 0 or len(username) == 0 or len(password) == 0:
         messagebox.showerror(title="Error", message="All fields are required!")
     else:
-        # adding a messagebox to verify with user if info they entered is correct, if yes then it will go through the
-        # writing to the data.txt file if user clicks no then it will go back to the screen for them to edit
-        if_yes = messagebox.askyesno(title=website, message=f"Is this correct?\n Website: {website}\n Username/Email: "
-                                                            f"{username}\n Password: {password}")
-        if if_yes:
-            # opening a data file using the "a" to append info to it... append creates the file
-            with open("data.txt", "a") as data:
-                # writing the data from the entries into the data.txt file and deleting the fields once the info is
-                # accepted into data.txt file
-                data.write(f"{website} | {username} | {password}\n")
-                website_text.delete(0, END)
-                username_text.delete(0, END)
-                password_text.delete(0, END)
+        # writing to the data.json file if user clicks no then it will go back to the screen for them to edit
+        # opening a data file using the "w" to write info to it
+        try:
+            with open("data.json", "r") as data:
+                # json.load takes out data from json file and puts it into a Python dictionary
+                # Reading the data
+                json_data = json.load(data)
+        except FileNotFoundError:
+            with open("data.json", "w") as data:
+                json.dump(new_data, data, indent=4)
+        else:
+            # writing json back into json file
+            # Updating the data
+            json_data.update(new_data)
+            with open("data.json", "w") as data:
+                # indent means providing the number of spaces to indent json data to make it more readable
+                # Saving updated data
+                json.dump(json_data, data, indent=4)
+        finally:
+            # deleting the fields once the info is accepted into data.json fie
+            website_text.delete(0, END)
+            username_text.delete(0, END)
+            password_text.delete(0, END)
+
+
+# ---------------------------- SEARCH --------------------------------- #
+def find_password():
+    website = website_text.get()
+    # using try to read json file and load data if exists
+    try:
+        with open("data.json", "r") as data:
+            website_data = json.load(data)
+    # except if file not found then give message
+    except FileNotFoundError:
+        messagebox.showinfo(title="Error", message="No Data File Found")
+    # if no error then will return the data user asked or will return error if not details exists
+    else:
+        if website in website_data:
+            email = website_data[website]["email"]
+            password = website_data[website]["password"]
+            messagebox.showinfo(title=website, message=f"Email: {email}\nPassword: {password}")
+        else:
+            messagebox.showinfo(title="Error", message=f"No details for {website} exists.")
 
 
 # ---------------------------- UI SETUP ------------------------------- #
@@ -83,8 +122,8 @@ password_label.grid(column=0, row=3)
 
 # Entries
 # adding columnspan to certain entries and buttons to stretch it to the next column by 2 and making the width a wider
-website_text = Entry(width=40)
-website_text.grid(column=1, row=1, columnspan=2)
+website_text = Entry(width=21)
+website_text.grid(column=1, row=1)
 # placing the cursor on the website entry line automatically
 website_text.focus()
 
@@ -94,7 +133,6 @@ username_text.grid(column=1, row=2, columnspan=2)
 password_text = Entry(width=21)
 password_text.grid(column=1, row=3)
 
-
 # Buttons
 generate_pass = Button(text="Generate Password", width=15, command=generate_password)
 generate_pass.grid(column=2, row=3)
@@ -102,5 +140,9 @@ generate_pass.grid(column=2, row=3)
 # adding command so when button is clicked the save function will activate
 add_button = Button(text="Add", width=34, command=save)
 add_button.grid(column=1, row=4, columnspan=2)
+
+# adding search button to search for specific website and password
+search_button = Button(text="Search", width=15, command=find_password)
+search_button.grid(column=2, row=1)
 
 window.mainloop()
